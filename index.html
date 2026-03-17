@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PlayWithAi V0.5 Alpha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0a0a0a; --bg-glass: rgba(15, 15, 15, 0.95);
+            --primary: #ff2a2a; --primary-glow: rgba(255, 42, 42, 0.2);
+            --msg-user: #ff2a2a; --msg-ai: #1a1a1a;
+            --text-main: #ffffff; --border-color: rgba(255, 255, 255, 0.1);
+        }
+        body.theme-blue-black { --bg-base: #050b14; --bg-glass: rgba(10, 15, 30, 0.95); --primary: #3b82f6; --primary-glow: rgba(59, 130, 246, 0.2); --msg-user: #2563eb; --msg-ai: #0f172a; }
+        body.theme-pink-white { --bg-base: #fdf2f8; --bg-glass: rgba(255, 255, 255, 0.95); --primary: #ec4899; --primary-glow: rgba(236, 72, 153, 0.2); --msg-user: #ec4899; --msg-ai: #ffffff; --text-main: #111111; --border-color: rgba(0, 0, 0, 0.1); }
+        body.theme-neon { --bg-base: #000000; --bg-glass: rgba(0, 0, 0, 0.9); --primary: #00ffcc; --primary-glow: rgba(0, 255, 204, 0.4); --msg-user: #00ffcc; --msg-ai: #111; --text-main: #fff; --border-color: rgba(0, 255, 204, 0.2); }
+
+        body { font-family: 'Anuphan', sans-serif; background: var(--bg-base); color: var(--text-main); }
+        .glass-dark { background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-color); }
+        .user-msg { background: var(--msg-user); color: #fff; border-radius: 1.2rem 1.2rem 0 1.2rem; }
+        .ai-msg { background: var(--msg-ai); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 1.2rem 1.2rem 1.2rem 0; }
+        .input-dark { background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; border-radius: 12px; }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .active-model { border-color: var(--primary) !important; background: var(--primary-glow) !important; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden theme-dark">
+
+    <header class="glass-dark p-4 flex justify-between items-center z-50 border-b">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center font-black italic shadow-lg" style="background:var(--primary); color:#fff;">PA</div>
+            <h1 class="text-lg font-bold italic tracking-tighter">PlayWith<span style="color:var(--primary)">Ai</span></h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="current-model-tag" class="text-[8px] opacity-50 font-bold uppercase">Hunter Alpha</span>
+            <div class="text-[8px] px-2 py-1 rounded font-bold uppercase tracking-widest" style="background:var(--primary-glow); color:var(--primary);">V0.5 Alpha</div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto pb-24 px-4 pt-4">
+        <section id="view-home" class="max-w-md mx-auto fade-in">
+            <h2 class="text-xl font-bold mb-4">🏠 หน้าหลัก (Public)</h2>
+            <div id="public-grid" class="grid grid-cols-2 gap-4"></div>
+        </section>
+
+        <section id="view-chats" class="hidden max-w-md mx-auto fade-in">
+            <h2 class="text-lg font-bold mb-4 pl-1">💬 ประวัติการแชท</h2>
+            <div id="chat-history-list" class="space-y-2"></div>
+        </section>
+
+        <section id="view-editor" class="hidden max-w-md mx-auto fade-in">
+            <div class="glass-dark p-6 rounded-[2.5rem] space-y-4 shadow-xl">
+                <h2 id="editor-title" class="text-xl font-bold italic" style="color:var(--primary)">✨ สร้างตัวละคร</h2>
+                <div class="flex flex-col items-center">
+                    <div id="edit-char-preview" class="w-24 h-24 bg-black/50 rounded-[1.5rem] bg-cover bg-center border-2 border-dashed border-gray-600 flex items-center justify-center cursor-pointer overflow-hidden shadow-inner" onclick="document.getElementById('edit-char-upload').click()">
+                        <span id="edit-char-icon" class="text-2xl">📸</span>
+                    </div>
+                    <input type="file" id="edit-char-upload" accept="image/*" class="hidden" onchange="processImg(this, 'edit-char')">
+                </div>
+                <input type="text" id="edit-char-name" placeholder="ชื่อตัวละคร*" class="w-full input-dark text-sm">
+                <textarea id="edit-char-bio" rows="3" placeholder="นิสัย ประวัติ และการตอบสนองที่ต้องการ" class="w-full input-dark text-sm resize-none"></textarea>
+                <textarea id="edit-char-first" rows="2" placeholder="คำทักทายแรก..." class="w-full input-dark text-sm resize-none"></textarea>
+                
+                <select id="edit-char-visibility" class="w-full input-dark text-xs outline-none">
+                    <option value="public">🌍 สาธารณะ (ทุกคนเห็น)</option>
+                    <option value="private">🔒 ส่วนตัว (เห็นคนเดียว)</option>
+                </select>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="switchView('home')" class="flex-1 py-3 rounded-xl font-bold bg-white/5 text-xs">ยกเลิก</button>
+                    <button onclick="saveCharacter()" class="flex-[2] py-3 rounded-xl font-bold shadow-lg" style="background:var(--primary); color:#fff">บันทึกตัวละคร</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-profile" class="hidden max-w-md mx-auto fade-in space-y-6">
+            <div class="flex justify-between items-center px-2">
+                 <h2 class="text-xl font-bold">👤 โปรไฟล์</h2>
+                 <button onclick="openSystemSettings()" class="text-xl opacity-70">⚙️</button>
+            </div>
+            <div class="text-center space-y-3">
+                <div id="user-avatar" class="w-20 h-20 mx-auto bg-black/50 rounded-full bg-cover bg-center border-2 flex items-center justify-center cursor-pointer overflow-hidden shadow-xl" style="border-color:var(--primary)" onclick="document.getElementById('user-upload').click()"></div>
+                <input type="file" id="user-upload" accept="image/*" class="hidden" onchange="processImg(this, 'user')">
+                <input type="text" id="username-input" class="bg-transparent text-lg font-bold text-center w-full outline-none" onchange="updateUsername(this.value)">
+            </div>
+            <div class="glass-dark p-5 rounded-[2.5rem]">
+                <h3 class="text-[10px] font-black mb-4 uppercase tracking-widest" style="color:var(--primary)">ตัวละครของฉัน</h3>
+                <div id="my-chars-list" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <section id="view-chat" class="hidden fixed inset-0 z-[60] flex flex-col" style="background:var(--bg-base)">
+            <div class="p-3 flex items-center justify-between border-b bg-black/40 backdrop-blur-xl z-10" style="border-color:var(--border-color)">
+                <div class="flex items-center gap-3">
+                    <button onclick="switchView('chats')" class="p-2 text-lg opacity-70">◀</button>
+                    <div onclick="openCharMenu()" class="flex items-center gap-3 cursor-pointer p-1">
+                        <div id="chat-header-img" class="w-10 h-10 rounded-full bg-cover bg-center border" style="border-color:var(--border-color)"></div>
+                        <div id="chat-header-name" class="font-bold text-sm">...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="chatBox" class="flex-1 overflow-y-auto p-4 space-y-5 scroll-smooth relative pb-20"></div>
+            
+            <div id="typingIndicator" class="hidden px-4 pb-2">
+                <div class="text-[10px] px-3 py-1 rounded-full glass-dark w-fit opacity-50">กำลังประมวลผล...</div>
+            </div>
+
+            <div class="p-3 bg-black/60 backdrop-blur-xl flex flex-col gap-2 border-t" style="border-color:var(--border-color)">
+                <div class="flex items-end gap-2">
+                    <button onclick="toggleSuggestMenu()" class="p-3 rounded-2xl glass-dark text-lg">💡</button>
+                    <textarea id="userInput" rows="1" class="flex-1 input-dark resize-none overflow-hidden max-h-24 leading-normal text-sm" placeholder="พิมพ์ข้อความ..."></textarea>
+                    <button onclick="handleSend()" class="p-3 px-5 rounded-2xl font-bold h-full shadow-lg" style="background:var(--primary); color:#fff">ส่ง</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="char-menu-modal" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="glass-dark w-full max-w-sm p-6 rounded-[2.5rem] space-y-4 flex flex-col max-h-[90vh]">
+            <h3 class="font-bold italic text-center" style="color:var(--primary)">ตั้งค่าตัวละคร & สมอง</h3>
+            <div class="overflow-y-auto flex-1 space-y-4 pr-2">
+                <div>
+                    <p class="text-[9px] font-black opacity-50 uppercase mb-2">🧠 เลือกสมอง (Model)</p>
+                    <div class="space-y-2">
+                        <button onclick="selectModel('openrouter/hunter-alpha')" id="m-hunter" class="w-full text-left p-3 rounded-xl border border-white/5 bg-white/5 text-xs transition-all">🏹 Hunter Alpha (Roleplayในตึงที่สุดที่เรามี)</button>
+                        <button onclick="selectModel('deepseek/deepseek-chat')" id="m-deep" class="w-full text-left p-3 rounded-xl border border-white/5 bg-white/5 text-xs transition-all">⚡ DeepSeek V3 (ฉลาด คุยลื่น แต่อาจจะหลุดบทบาง)</button>
+                        <button onclick="selectModel('x-ai/grok-2-1212')" id="m-grok" class="w-full text-left p-3 rounded-xl border border-white/5 bg-white/5 text-xs transition-all">🧠 Grok 4.1 (ฉลาดเข้าใจภาษา คุยได้ลึกกว่า)</button>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-[9px] font-black opacity-50 uppercase mb-2">📝 โน้ตความจำ (สูงสุด 20 บรรทัด)</p>
+                    <textarea id="char-notes" rows="6" class="w-full input-dark text-[11px] resize-none" placeholder="ใส่เหตุการณ์ที่ต้องจำ..."></textarea>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="resetChat()" class="flex-1 py-3 border border-red-500/30 text-red-500 rounded-xl text-[10px] font-bold">RESET CHAT</button>
+                <button onclick="saveCharSettings()" class="flex-[2] py-3 rounded-xl font-bold text-xs" style="background:var(--primary); color:#fff">บันทึกและปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="system-settings-modal" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="glass-dark w-full max-w-sm p-8 rounded-[2.5rem] space-y-5">
+            <h3 class="font-bold italic text-lg text-center" style="color:var(--primary)">⚙️ ตั้งค่าระบบ</h3>
+            <div class="space-y-3">
+                <div>
+                    <p class="text-[10px] uppercase font-bold opacity-60 mb-1">ภาษาหลักที่ AI ตอบ</p>
+                    <select id="sys-lang" class="w-full input-dark text-xs outline-none">
+                        <option value="THAI">ภาษาไทย</option>
+                        <option value="ENGLISH">English</option>
+                    </select>
+                </div>
+                <div>
+                    <p class="text-[10px] uppercase font-bold opacity-60 mb-1">ธีมแอป</p>
+                    <select id="sys-theme" class="w-full input-dark text-xs outline-none" onchange="changeTheme(this.value)">
+                        <option value="dark">🌙 Dark</option>
+                        <option value="blue-black">🌌 Blue-Black</option>
+                        <option value="pink-white">🌸 Pink-White</option>
+                        <option value="neon">🕹️ Neon RGB</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="saveSystemSettings()" class="w-full py-3 font-bold text-xs rounded-xl" style="background:var(--primary); color:#fff">บันทึก</button>
+            <button onclick="closeSystemSettings()" class="w-full py-2 font-bold text-xs opacity-40">ยกเลิก</button>
+        </div>
+    </div>
+
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 glass-dark h-20 flex justify-around items-center px-2 z-50 border-t pb-2">
+        <button onclick="switchView('home')" class="nav-btn flex flex-col items-center gap-1 opacity-50" data-tab="home"><span class="text-2xl">🏠</span><span class="text-[9px] font-bold">HOME</span></button>
+        <button onclick="switchView('chats')" class="nav-btn flex flex-col items-center gap-1 opacity-50" data-tab="chats"><span class="text-2xl">💬</span><span class="text-[9px] font-bold">CHATS</span></button>
+        <button onclick="openEditor()" class="nav-btn flex flex-col items-center gap-1 opacity-50" data-tab="editor"><span class="text-2xl">➕</span><span class="text-[9px] font-bold">CREATE</span></button>
+        <button onclick="switchView('profile')" class="nav-btn flex flex-col items-center gap-1 opacity-50" data-tab="profile"><span class="text-2xl">👤</span><span class="text-[9px] font-bold">PROFILE</span></button>
+    </nav>
+
+    <script>
+        const API_KEY = "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";
+        const STORAGE_ID = "pai_v7_data";
+        
+        let db = JSON.parse(localStorage.getItem(STORAGE_ID)) || {
+            characters: [],
+            chats: {},
+            user: { name: "USER เปลี่ยนชื่อได้น่ะ", avatar: "" },
+            settings: { theme: 'dark', lang: 'THAI' }
+        };
+
+        let currentChatId = null;
+        let editingCharId = null;
+        let activeModel = "openrouter/hunter-alpha"; // แก้ไขจุดที่ 2
+        let isTranslating = false;
+
+        function saveDB() { localStorage.setItem(STORAGE_ID, JSON.stringify(db)); }
+
+        function switchView(t) {
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+            const target = document.getElementById('view-' + t);
+            if(target) target.classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.add('opacity-50'));
+            const nav = document.querySelector(`[data-tab="${t}"]`);
+            if(nav) nav.classList.remove('opacity-50');
+            document.getElementById('bottom-nav').style.display = (t === 'chat') ? 'none' : 'flex';
+            if(t === 'home') renderHome();
+            if(t === 'chats') renderChats();
+            if(t === 'profile') renderProfile();
+        }
+
+        // --- Model Selector ---
+        function selectModel(m) {
+            activeModel = m;
+            document.getElementById('current-model-tag').innerText = m.split('/')[1];
+            document.querySelectorAll('#char-menu-modal button').forEach(b => b.classList.remove('active-model'));
+            if(m.includes('hunter')) document.getElementById('m-hunter').classList.add('active-model');
+            if(m.includes('deep')) document.getElementById('m-deep').classList.add('active-model');
+            if(m.includes('grok')) document.getElementById('m-grok').classList.add('active-model');
+        }
+
+        // --- Translation Feature (แก้ไขจุดที่ 3) ---
+        async function translateText(msgIdx) {
+            if(isTranslating) return;
+            const history = db.chats[currentChatId];
+            const msg = history[msgIdx];
+            const textToTranslate = msg.alts ? msg.alts[msg.altIdx] : msg.content;
+
+            isTranslating = true;
+            const btn = document.getElementById(`trans-btn-${msgIdx}`);
+            if(btn) btn.innerText = "⏳ กำลังแปล...";
+
+            try {
+                const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "deepseek/deepseek-chat",
+                        messages: [{ role: "user", content: `Translate this to natural Thai: "${textToTranslate}"` }]
+                    })
+                });
+                const data = await res.json();
+                msg.translated = data.choices[0].message.content.trim();
+                saveDB();
+                renderMessages();
+            } catch(e) { alert("การแปลผิดพลาด"); }
+            finally { isTranslating = false; }
+        }
+
+        // --- Chat Core (แก้ไขจุดที่ 4: บัค Regen) ---
+        async function callAI(isRegen = false) {
+            const char = db.characters.find(c => c.id == currentChatId);
+            const history = db.chats[currentChatId];
+            const cleanNotes = (char.notes || "").split('\n').slice(0, 20).join('\n');
+            
+            // Logic แก้บัค: ถ้าสุ่มใหม่ ให้เอาข้อความ AI ล่าสุดออกจากประวัติที่จะส่งไป
+            let messagesToSend = history.slice(-10).map(m => ({ 
+                role: m.role, 
+                content: m.alts ? m.alts[m.altIdx || 0] : m.content 
+            }));
+            
+            if (isRegen && messagesToSend.length > 0) {
+                messagesToSend.pop(); 
+            }
+
+            let sys = `You are ${char.name}. Bio: ${char.bio}. Memory: ${cleanNotes}. Answer in ${db.settings.lang}. Be concise and natural.`;
+            document.getElementById('typingIndicator').classList.remove('hidden');
+
+            try {
+                const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: activeModel,
+                        messages: [{ role: "system", content: sys }, ...messagesToSend]
+                    })
+                });
+                const d = await res.json();
+                const aiText = d.choices[0].message.content.trim();
+
+                if (isRegen) {
+                    history[history.length - 1].alts.push(aiText);
+                    history[history.length - 1].altIdx = history[history.length - 1].alts.length - 1;
+                    delete history[history.length - 1].translated; // ลบคำแปลเก่าถ้ามี
+                } else {
+                    history.push({ role: 'assistant', content: aiText, alts: [aiText], altIdx: 0 });
+                }
+                saveDB(); renderMessages();
+            } catch(e) { alert("API Connection Error"); }
+            document.getElementById('typingIndicator').classList.add('hidden');
+        }
+
+        function renderMessages() {
+            const box = document.getElementById('chatBox'); box.innerHTML = '';
+            const history = db.chats[currentChatId] || [];
+            const char = db.characters.find(c => c.id == currentChatId);
+
+            history.forEach((msg, idx) => {
+                const isUser = msg.role === 'user';
+                const d = document.createElement('div');
+                d.className = `flex gap-2 items-end ${isUser ? 'flex-row-reverse' : ''} fade-in mb-4`;
+                
+                let content = isUser ? msg.content : (msg.alts ? msg.alts[msg.altIdx || 0] : msg.content);
+                const hasEnglish = /[a-zA-Z]{5,}/.test(content); // ตรวจสอบเบื้องต้นว่าเป็นภาษาอังกฤษไหม
+
+                d.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-cover bg-center shrink-0 border" style="background-image:url('${isUser ? db.user.avatar : char.img}')"></div>
+                    <div class="max-w-[75%] flex flex-col ${isUser ? 'items-end' : 'items-start'}">
+                        <div class="p-3 text-sm ${isUser ? 'user-msg shadow-md' : 'ai-msg shadow-sm'}">${content.replace(/\n/g, '<br>')}</div>
+                        ${msg.translated ? `<div class="mt-1 p-2 bg-white/5 border-l-2 border-primary text-[11px] italic opacity-80 rounded-r-lg">🇹🇭 ${msg.translated}</div>` : ''}
+                        
+                        ${!isUser && idx === history.length - 1 ? `
+                            <div class="flex gap-2 mt-1">
+                                <button onclick="callAI(true)" class="text-[9px] opacity-40 hover:opacity-100 transition-opacity">🔄 สุ่มใหม่ (${(msg.altIdx||0)+1}/${msg.alts ? msg.alts.length : 1})</button>
+                                ${hasEnglish && !msg.translated ? `<button id="trans-btn-${idx}" onclick="translateText(${idx})" class="text-[9px] opacity-40 hover:opacity-100 transition-opacity">🇹🇭 แปลไทย</button>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                box.appendChild(d);
+            });
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // --- Utility & Settings ---
+        function handleSend() {
+            const input = document.getElementById('userInput');
+            if(!input.value.trim()) return;
+            if(!db.chats[currentChatId]) db.chats[currentChatId] = [];
+            db.chats[currentChatId].push({ role: 'user', content: input.value.trim() });
+            input.value = ''; input.style.height = '';
+            renderMessages(); callAI();
+        }
+
+        function renderProfile() {
+            const av = document.getElementById('user-avatar');
+            av.innerHTML = ""; // ล้างอิโมจิออกเสมอ
+            if(db.user.avatar) av.style.backgroundImage = `url('${db.user.avatar}')`;
+            document.getElementById('username-input').value = db.user.name;
+            document.getElementById('my-chars-list').innerHTML = db.characters.map(c => `<div class="flex justify-between p-3 glass-dark rounded-xl text-xs"><span>${c.name}</span><div class="flex gap-2 font-bold"><button onclick="openEditor('${c.id}')" class="text-primary">แก้ไข</button><button onclick="deleteChar('${c.id}')" class="opacity-50">ลบ</button></div></div>`).join('');
+        }
+
+        function processImg(input, type) {
+            const f = input.files[0]; if(!f) return;
+            const r = new FileReader(); r.onload = (e) => {
+                const data = e.target.result;
+                if(type === 'user') { db.user.avatar = data; renderProfile(); saveDB(); }
+                else { const p = document.getElementById('edit-char-preview'); p.style.backgroundImage = `url('${data}')`; p.dataset.img = data; document.getElementById('edit-char-icon').style.display = 'none'; }
+            }; r.readAsDataURL(f);
+        }
+
+        // Boilerplate UI Functions
+        function openSystemSettings() { document.getElementById('sys-lang').value = db.settings.lang; document.getElementById('sys-theme').value = db.settings.theme; document.getElementById('system-settings-modal').classList.remove('hidden'); }
+        function closeSystemSettings() { document.getElementById('system-settings-modal').classList.add('hidden'); }
+        function saveSystemSettings() { db.settings.lang = document.getElementById('sys-lang').value; db.settings.theme = document.getElementById('sys-theme').value; saveDB(); closeSystemSettings(); }
+        function changeTheme(t) { document.body.className = `theme-${t}`; }
+        function renderHome() { const grid = document.getElementById('public-grid'); const publics = db.characters.filter(c => c.visibility === 'public'); grid.innerHTML = publics.map(c => `<div onclick="openChat('${c.id}')" class="glass-dark rounded-3xl overflow-hidden h-40 relative active:scale-95 transition-transform"><div class="absolute inset-0 bg-cover bg-center" style="background-image:url('${c.img}')"></div><div class="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div><div class="absolute bottom-3 left-3 text-white font-bold text-sm">${c.name}</div></div>`).join(''); }
+        function renderChats() { const list = document.getElementById('chat-history-list'); list.innerHTML = Object.keys(db.chats).map(id => { const c = db.characters.find(x => x.id == id); if(!c) return ''; return `<div onclick="openChat('${id}')" class="glass-dark p-3 rounded-2xl flex gap-3 active:scale-95 transition-all"><div class="w-10 h-10 rounded-full bg-cover bg-center border border-white/10" style="background-image:url('${c.img}')"></div><div><p class="text-sm font-bold">${c.name}</p><p class="text-[10px] opacity-40 uppercase font-black tracking-tighter">Open Conversation</p></div></div>`; }).join(''); }
+        function openChat(id) { currentChatId = id; selectModel(activeModel); switchView('chat'); if(!db.chats[id]) { const c = db.characters.find(x => x.id==id); db.chats[id] = [{role:'assistant', content:c.first||'สวัสดี', alts:[c.first||'สวัสดี'], altIdx:0}]; saveDB(); } renderMessages(); const char = db.characters.find(x => x.id == id); document.getElementById('chat-header-name').innerText = char.name; document.getElementById('chat-header-img').style.backgroundImage = `url('${char.img}')`; }
+        function openCharMenu() { document.getElementById('char-notes').value = db.characters.find(x => x.id==currentChatId).notes || ""; document.getElementById('char-menu-modal').classList.remove('hidden'); }
+        function closeCharMenu() { document.getElementById('char-menu-modal').classList.add('hidden'); }
+        function saveCharSettings() { db.characters.find(x => x.id==currentChatId).notes = document.getElementById('char-notes').value; saveDB(); closeCharMenu(); }
+        function resetChat() { if(confirm("ล้างข้อความทั้งหมด?")) { delete db.chats[currentChatId]; saveDB(); openChat(currentChatId); closeCharMenu(); } }
+        function deleteChar(id) { if(confirm("ลบตัวละครนี้?")) { db.characters = db.characters.filter(x => x.id!==id); delete db.chats[id]; saveDB(); renderProfile(); } }
+        function updateUsername(v) { db.user.name = v; saveDB(); }
+        function openEditor(id = null) { editingCharId = id; if(id) { const c = db.characters.find(x => x.id == id); document.getElementById('edit-char-name').value = c.name; document.getElementById('edit-char-bio').value = c.bio; document.getElementById('edit-char-first').value = c.first; document.getElementById('edit-char-preview').style.backgroundImage = `url('${c.img}')`; document.getElementById('edit-char-preview').dataset.img = c.img; document.getElementById('edit-char-icon').style.display = 'none'; } else { document.getElementById('edit-char-name').value = ""; document.getElementById('edit-char-bio').value = ""; document.getElementById('edit-char-first').value = ""; document.getElementById('edit-char-preview').style.backgroundImage = ""; document.getElementById('edit-char-icon').style.display = 'block'; } switchView('editor'); }
+        function saveCharacter() { const name = document.getElementById('edit-char-name').value; const bio = document.getElementById('edit-char-bio').value; const first = document.getElementById('edit-char-first').value; const img = document.getElementById('edit-char-preview').dataset.img || ""; const vis = document.getElementById('edit-char-visibility').value; if(!name || !bio) return alert("กรุณาใส่ชื่อและข้อมูล!"); if(editingCharId) { const idx = db.characters.findIndex(c => c.id == editingCharId); db.characters[idx] = { ...db.characters[idx], name, bio, first, img, visibility: vis }; } else { db.characters.push({ id: Date.now().toString(), name, bio, first, img, visibility: vis, notes: "" }); } saveDB(); switchView('home'); }
+        function toggleSuggestMenu() { alert("Suggest Menu coming soon in V7.3!"); }
+
+        changeTheme(db.settings.theme);
+        switchView('home');
+    </script>
+</body>
+</html>
